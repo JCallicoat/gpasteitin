@@ -1,0 +1,44 @@
+Installation:
+
+sudo ./setup.py install --record install_log
+
+
+Usage:
+
+Start from Gnome Menu -> Applications, or run "gpasteitin" command.
+
+
+Uninstallation:
+
+cat install_log | sudo xargs rm -rf
+
+
+Run without installation:
+
+./gpasteitin/gpasteitin.py
+
+
+Known issues:
+
+* Crapload of warnings from importing gtk and xlib. Nothing I can do about that,
+needs to be fixed upstream.
+
+* When you start editing a cell and then press tab to change cells,
+the edit is lost. For now just hit enter first to make the edit stick,
+then tab to the next column.
+
+* Main window cannot be focused (so accels and escape key won't work). I'm
+working on allowing focus and using wnck screen get_previously_active_window(),
+but it doesn't seem to work consistently. Might be fixed in v0.4 (however, due
+to the fact that I'm lazy, it will probably never be fixed).
+
+
+Fun stuff:
+
+* Rows in the preferences tree can be dragged to reorder (or use the up and
+down buttons).
+
+* Escape exits preference window and saves prefs.
+
+* Escape completely exits main window (but see above about focus).
+
