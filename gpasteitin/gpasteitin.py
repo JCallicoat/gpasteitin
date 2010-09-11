@@ -70,6 +70,7 @@ class GPasteItIn (object):
             "clip_size"     : 8,
             "wrap_width"    : 4,
             "initial_clip"  : True,
+            "always_ontop"  : True,
             "x"             : 0,
             "y"             : 0
         },
@@ -80,14 +81,15 @@ class GPasteItIn (object):
         self.config = ConfigObj (self.config_file, write_empty_values = True)
         self.populate_config ()
 
-        self.display   = display.Display ()
-        self.screen    = wnck.screen_get_default()
-        self.clipboard = gtk.clipboard_get ("CLIPBOARD")
-        self.alt_clip  = gtk.clipboard_get ("PRIMARY")
-        self.new_clip  = None
-        self.our_data  = None
-        self.clips     = []
-        self.clips_ins = 0
+        self.display     = display.Display ()
+        self.screen      = wnck.screen_get_default()
+        self.last_window = self.screen.get_active_window ()
+        self.clipboard   = gtk.clipboard_get ("CLIPBOARD")
+        self.alt_clip    = gtk.clipboard_get ("PRIMARY")
+        self.new_clip    = None
+        self.our_data    = None
+        self.clips       = []
+        self.clips_ins   = 0
 
         self.terminals = [
             "Terminal", "terminator", "lxterminal", "Yakuake",
@@ -136,6 +138,10 @@ class GPasteItIn (object):
         self.options["initial_clip"]  = self.options.as_bool ("initial_clip")
         self.options["x"]             = self.options.as_int ("x")
         self.options["y"]             = self.options.as_int ("y")
+        if not self.options.has_key ("always_ontop"):
+            self.options["always_ontop"] = True
+        else:
+            self.options["always_ontop"] = self.options.as_bool ("always_ontop")
 
 
     def setup_ui (self):
@@ -157,6 +163,8 @@ class GPasteItIn (object):
             "on_clip_color_set"     : self.on_clip_color_set,
             "on_snip_color_set"     : self.on_snip_color_set,
             "on_column_toggled"     : self.on_column_toggled,
+            "on_ontop_toggled"      : self.on_ontop_toggled,
+            "on_initclip_toggled"   : self.on_initclip_toggled,
             "on_wrap_spin"          : self.on_wrap_spin,
             "on_clip_spin"          : self.on_clip_spin,
             "on_edit_done"          : self.on_edit_done,
@@ -164,11 +172,12 @@ class GPasteItIn (object):
             "on_profile_new"        : self.on_profile_new,
             "on_profile_delete"     : self.on_profile_delete,
             "on_profile_activate"   : self.on_profile_activate,
-            "on_configure_event"    : self.on_configure_event
+            "on_configure_event"    : self.on_configure_event,
+            "on_focus_in_event"     : self.on_focus_in_event
         })
 
         self.window = ui.get_object ("MainWindow")
-        self.window.set_keep_above (True)
+        self.window.set_keep_above (self.options["always_ontop"])
         self.window.move (self.options["x"], self.options["y"])
 
         self.pref_window    = ui.get_object ("PreferencesWindow")
@@ -182,6 +191,8 @@ class GPasteItIn (object):
         self.snip_color     = ui.get_object ("SnipColorButton")
         self.clip_color     = ui.get_object ("ClipColorButton")
         self.column_check   = ui.get_object ("ColumnCheck")
+        self.ontop_check    = ui.get_object ("OntopCheck")
+        self.initclip_check = ui.get_object ("InitClipCheck")
 
         self.wrap_spin      = ui.get_object ("WrapSpinButton")
         self.clip_spin      = ui.get_object ("ClipSpinButton")
@@ -339,6 +350,8 @@ class GPasteItIn (object):
         self.snip_color.set_color (gtk.gdk.color_parse (self.options["snip_color"]))
         self.clip_color.set_color (gtk.gdk.color_parse (self.options["clip_color"]))
         self.column_check.set_active (self.options["single_column"])
+        self.ontop_check.set_active (self.options["always_ontop"])
+        self.initclip_check.set_active (self.options["initial_clip"])
         self.clip_spin.set_value (self.options["clip_size"])
         self.wrap_spin.set_value (self.options["wrap_width"])
 
@@ -394,6 +407,8 @@ class GPasteItIn (object):
         self.options["snip_color"]    = self.snip_color.get_color ().to_string ()
         self.options["clip_color"]    = self.clip_color.get_color ().to_string ()
         self.options["single_column"] = self.column_check.get_active ()
+        self.options["always_ontop"]  = self.ontop_check.get_active ()
+        self.options["initial_clip"]  = self.initclip_check.get_active ()
         self.options["wrap_width"]    = self.wrap_spin.get_value_as_int ()
         self.options["clip_size"]     = self.clip_spin.get_value_as_int ()
 
@@ -401,6 +416,8 @@ class GPasteItIn (object):
 
         if self.options["clip_size"] < len (self.clips):
             self.clips = self.clips[0 : self.options["clip_size"]]
+        
+        self.window.set_keep_above (self.options["always_ontop"])
 
 
     def get_resdir (self):
@@ -457,13 +474,24 @@ class GPasteItIn (object):
         return True # cancel the delete event
 
 
+    def on_focus_in_event (self, window, event, *args):
+        last_window = self.screen.get_previously_active_window ()
+        if last_window and not last_window == self.last_window:
+            name = last_window.get_application ().get_name ().split (" ", 1)[0]
+            if not name == "gpasteitin.py":
+                self.last_window = last_window
+
+
     def on_paste_stuff (self, button, *args):
-        window = self.screen.get_active_window ()
-        # grab the last focused window and activate it
-#        window = self.screen.get_previously_active_window ()
-        if not window:
+        self.on_focus_in_event (self.window, gtk.gdk.Event (gtk.gdk.FOCUS_CHANGE))
+        if not self.last_window:
             return
-#        window.activate (gtk.get_current_event_time ())
+        self.last_window.activate (gtk.get_current_event_time ())
+
+        gobject.timeout_add (20, self.do_paste, button, *args)
+
+
+    def do_paste (self, button, *args):
 
         new_text = button.get_tooltip_text ()
 
@@ -472,9 +500,7 @@ class GPasteItIn (object):
         shift = self.display.keysym_to_keycode (XK.string_to_keysym ("Shift_L"))
         v     = self.display.keysym_to_keycode (XK.string_to_keysym ("v"))
 
-        name = window.get_application ().get_name ().split (" ", 1)[0]
-        # show the application name
-#        print (name)
+        name  = self.last_window.get_application ().get_name ().split (" ", 1)[0]
 
         if name in self.alt_terms:
             old_text = self.alt_clip.wait_for_text ()
@@ -755,6 +781,11 @@ class GPasteItIn (object):
         self.update_config ()
 
         self.window.move (self.options["x"], self.options["y"])
+        if self.options.has_key ("always_ontop"):
+            ontop = self.options.as_bool ("always_ontop")
+        else:
+            ontop = True
+        self.window.set_keep_above (ontop)
 
         self.populate_tree ()
         self.populate_preferences ()
@@ -780,6 +811,16 @@ class GPasteItIn (object):
 
 
     def on_column_toggled (self, button, *args):
+#        self.needs_save = True
+        pass
+
+
+    def on_ontop_toggled (self, button, *args):
+#        self.needs_save = True
+        pass
+
+
+    def on_initclip_toggled (self, button, *args):
 #        self.needs_save = True
         pass
 

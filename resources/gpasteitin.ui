@@ -7,10 +7,9 @@
     <property name="events">GDK_KEY_PRESS_MASK | GDK_KEY_RELEASE_MASK | GDK_STRUCTURE_MASK</property>
     <property name="title" translatable="yes">GPasteItIn</property>
     <property name="icon">/usr/share/pixmaps/gpasteitin.png</property>
-    <property name="type_hint">utility</property>
-    <property name="accept_focus">False</property>
     <property name="focus_on_map">False</property>
     <signal name="key_press_event" handler="on_window_keypress"/>
+    <signal name="focus_in_event" handler="on_focus_in_event"/>
     <signal name="configure_event" handler="on_configure_event"/>
     <signal name="delete_event" handler="on_delete_event"/>
     <child>
@@ -254,7 +253,6 @@
               <object class="GtkHBox" id="OptionsHbox1">
                 <property name="visible">True</property>
                 <property name="spacing">2</property>
-                <property name="homogeneous">True</property>
                 <child>
                   <object class="GtkColorButton" id="SnipColorButton">
                     <property name="visible">True</property>
@@ -292,6 +290,34 @@
                   </object>
                   <packing>
                     <property name="position">2</property>
+                  </packing>
+                </child>
+                <child>
+                  <object class="GtkCheckButton" id="OntopCheck">
+                    <property name="label" translatable="yes">On Top</property>
+                    <property name="visible">True</property>
+                    <property name="can_focus">True</property>
+                    <property name="receives_default">False</property>
+                    <property name="tooltip_text" translatable="yes">Stay above other windows</property>
+                    <property name="draw_indicator">True</property>
+                    <signal name="toggled" handler="on_ontop_toggled"/>
+                  </object>
+                  <packing>
+                    <property name="position">3</property>
+                  </packing>
+                </child>
+                <child>
+                  <object class="GtkCheckButton" id="InitClipCheck">
+                    <property name="label" translatable="yes">Initial Clip</property>
+                    <property name="visible">True</property>
+                    <property name="can_focus">True</property>
+                    <property name="receives_default">False</property>
+                    <property name="tooltip_text" translatable="yes">Add item already in clipboard on startup</property>
+                    <property name="draw_indicator">True</property>
+                    <signal name="toggled" handler="on_initclip_toggled"/>
+                  </object>
+                  <packing>
+                    <property name="position">4</property>
                   </packing>
                 </child>
               </object>
