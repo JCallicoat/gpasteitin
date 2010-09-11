@@ -26,7 +26,7 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-__VERSION__ = "0.7"
+__VERSION__ = "0.7.2"
 
 import os
 import sys
@@ -654,7 +654,7 @@ class GPasteItIn (object):
         else:
             self.our_data = text
             if len(self.clips) > self.options["clip_size"] - 1:
-                if self.clips_ins > self.options["clip_size"] - 2:
+                if self.clips_ins > self.options["clip_size"] - 1:
                     self.clips[0] = text
                     self.clips_ins = 1
                 else:
