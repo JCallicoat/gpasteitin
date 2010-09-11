@@ -2,10 +2,13 @@ Installation:
 
 sudo ./setup.py install --record install_log
 
+NOTE: You need to run migrate.py from the root directory if installing over a previous
+      version that's less than 0.7!
+
 
 Usage:
 
-Start from Gnome Menu -> Applications, or run "gpasteitin" command.
+Start from Gnome Menu -> Accessories, or run "gpasteitin" command.
 
 
 Uninstallation:
@@ -20,17 +23,13 @@ Run without installation:
 
 Known issues:
 
-* Crapload of warnings from importing gtk and xlib. Nothing I can do about that,
+* Crapload of warnings on stdout from importing gtk and xlib. Nothing I can do about that,
 needs to be fixed upstream.
-
-* When you start editing a cell and then press tab to change cells,
-the edit is lost. For now just hit enter first to make the edit stick,
-then tab to the next column.
 
 * Main window cannot be focused (so accels and escape key won't work). I'm
 working on allowing focus and using wnck screen get_previously_active_window(),
-but it doesn't seem to work consistently. Might be fixed in v0.4 (however, due
-to the fact that I'm lazy, it will probably never be fixed).
+but it doesn't seem to work consistently. Might be fixed later (however, due
+to the fact that I'm lazy, it will probably never be fixed--feel free to contribue patches).
 
 
 Fun stuff:
@@ -38,7 +37,9 @@ Fun stuff:
 * Rows in the preferences tree can be dragged to reorder (or use the up and
 down buttons).
 
-* Escape exits preference window and saves prefs.
+* Escape/close button exits preference window but DOES NOT save preferences.
 
 * Escape completely exits main window (but see above about focus).
+
+* Each profile remembers its last window position.
 
