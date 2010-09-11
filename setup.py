@@ -10,7 +10,7 @@ data_files = [("/usr/share/gpasteitin", dfiles),
               ("/usr/share/applications", ["resources/gpasteitin.desktop"])]
 
 setup(name             = "GPasteItIn",
-      version          = "0.7.2",
+      version          = "0.7.3",
       description      = "Simple snippet / paste tool for GTK+",
       long_description = "Simple snippet / paste tool for GTK+",
       author           = "Jordan Callicoat",
