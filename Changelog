@@ -46,3 +46,9 @@
   -- Made a multi-line edit window for editing snippet contents
   -- A bunch of smaller bugfixes in preferences window
 
+
+* Fri, 10 Sep 2010 19:31:19 -0500
+
+  -- v0.7.2 - Changelog deprecated, see hg log.
+
+
