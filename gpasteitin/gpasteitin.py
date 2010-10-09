@@ -26,7 +26,7 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-__VERSION__ = "0.7.3"
+__VERSION__ = "0.7.4"
 
 import os
 import sys
@@ -253,7 +253,7 @@ class GPasteItIn (object):
             label.modify_fg (gtk.STATE_NORMAL, color)
             label.modify_fg (gtk.STATE_PRELIGHT, color)
             label.modify_fg (gtk.STATE_ACTIVE, color)
-            button.set_tooltip_text (str (value).decode ("string-escape"))
+            button.set_tooltip_text (str (value)) #.decode ("string-escape"))
             button.connect ("clicked", self.on_paste_stuff)
             hbox.pack_start (button, True, True, 0)
             count += 1
@@ -280,7 +280,7 @@ class GPasteItIn (object):
                 self.clip_vbox.pack_start (hbox, False, False, 1)
                 count = 0
             clip_name = clip.encode("string-escape")
-            if len(clip_name) > 15:
+            if len (clip_name) > 15:
                 clip_name = clip_name[0:15] + "..."
             button = gtk.Button (clip_name)
             button.set_use_underline (False)
@@ -289,7 +289,7 @@ class GPasteItIn (object):
             label.modify_fg (gtk.STATE_NORMAL, color)
             label.modify_fg (gtk.STATE_PRELIGHT, color)
             label.modify_fg (gtk.STATE_ACTIVE, color)
-            button.set_tooltip_text (clip.decode ("string-escape"))
+            button.set_tooltip_text (clip) #.decode ("string-escape"))
             button.connect ("clicked", self.on_paste_stuff)
             hbox.pack_start (button, True, True, 0)
             count += 1
@@ -343,7 +343,7 @@ class GPasteItIn (object):
                 self.treeview.model.append ((row[0].decode ("string-escape"), ""))
             else:
                 self.treeview.model.append ((row[0].decode ("string-escape"),
-                                             row[1].decode ("string-escape")))
+                                             row[1])) #.decode ("string-escape")))
 
 
     def populate_preferences (self):
@@ -358,6 +358,40 @@ class GPasteItIn (object):
 
     #############
     # utility
+    def send_paste_keypress (self, alt_clip=False, old_text=None, name=None):
+        # TODO: configuration option for paste key-sequence?
+        ctrl  = self.display.keysym_to_keycode (XK.string_to_keysym ("Control_L"))
+        shift = self.display.keysym_to_keycode (XK.string_to_keysym ("Shift_L"))
+        v     = self.display.keysym_to_keycode (XK.string_to_keysym ("v"))
+
+        if alt_clip:
+            ins = self.display.keysym_to_keycode (XK.string_to_keysym ("Insert"))
+            self.display.xtest_fake_input (X.KeyPress, shift)
+            self.display.xtest_fake_input (X.KeyPress, ins)
+            self.display.xtest_fake_input (X.KeyRelease, ins)
+            self.display.xtest_fake_input (X.KeyRelease, shift)
+
+            self.new_clip = self.alt_clip
+        else:
+            term = name in self.terminals or "bash" in name
+            if term:
+                self.display.xtest_fake_input (X.KeyPress, shift)
+            self.display.xtest_fake_input (X.KeyPress, ctrl)
+            self.display.xtest_fake_input (X.KeyPress, v)
+            self.display.xtest_fake_input (X.KeyRelease, v)
+            self.display.xtest_fake_input (X.KeyRelease, ctrl)
+            if term:
+                self.display.xtest_fake_input (X.KeyRelease, shift)
+
+        self.display.sync ()
+
+        # need to give xlib time to do it's thing as the calls are asyncronous
+        if old_text:
+            gobject.timeout_add (100, self.reset_clipboard, old_text)
+        else:
+            gobject.timeout_add (100, self.clear_clipboard)
+
+
     def clear_clipboard (self):
         if self.new_clip:
             self.new_clip.clear ()
@@ -492,49 +526,18 @@ class GPasteItIn (object):
 
 
     def do_paste (self, button, *args):
-
         new_text = button.get_tooltip_text ()
-
-        # TODO: configuration option for paste key-sequence?
-        ctrl  = self.display.keysym_to_keycode (XK.string_to_keysym ("Control_L"))
-        shift = self.display.keysym_to_keycode (XK.string_to_keysym ("Shift_L"))
-        v     = self.display.keysym_to_keycode (XK.string_to_keysym ("v"))
-
-        name  = self.last_window.get_application ().get_name ().split (" ", 1)[0]
+        name     = self.last_window.get_application ().get_name ().split (" ", 1)[0]
 
         if name in self.alt_terms:
             old_text = self.alt_clip.wait_for_text ()
             self.alt_clip.set_text (new_text)
-
-            ins = self.display.keysym_to_keycode (XK.string_to_keysym ("Insert"))
-            self.display.xtest_fake_input (X.KeyPress, shift)
-            self.display.xtest_fake_input (X.KeyPress, ins)
-            self.display.xtest_fake_input (X.KeyRelease, ins)
-            self.display.xtest_fake_input (X.KeyRelease, shift)
-
-            self.new_clip = self.alt_clip
+            gobject.timeout_add (100, self.send_paste_keypress, True, old_text, name)
         else:
             self.our_data = new_text
             old_text = self.clipboard.wait_for_text ()
             self.clipboard.set_text (new_text)
-
-            term = name in self.terminals or "bash" in name
-            if term:
-                self.display.xtest_fake_input (X.KeyPress, shift)
-            self.display.xtest_fake_input (X.KeyPress, ctrl)
-            self.display.xtest_fake_input (X.KeyPress, v)
-            self.display.xtest_fake_input (X.KeyRelease, v)
-            self.display.xtest_fake_input (X.KeyRelease, ctrl)
-            if term:
-                self.display.xtest_fake_input (X.KeyRelease, shift)
-
-        self.display.sync ()
-
-        # need to give xlib time to do it's thing as the calls are asyncronous
-        if old_text:
-            gobject.timeout_add (100, self.reset_clipboard, old_text)
-        else:
-            gobject.timeout_add (100, self.clear_clipboard)
+            gobject.timeout_add (100, self.send_paste_keypress, False, old_text, name)
 
 
     def on_add_item (self, widget):
