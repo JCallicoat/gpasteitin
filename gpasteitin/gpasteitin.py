@@ -55,7 +55,6 @@ except ImportError:
     sys.exit ("This program requires python-xdg.")
 
 
-
 class GPasteItIn (object):
 
     config_path = BaseDirectory.save_config_path ("gpasteitin")
