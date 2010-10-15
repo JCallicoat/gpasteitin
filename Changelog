@@ -1,0 +1,54 @@
+* Fri, 23 Jul 2010 01:01:01 -0500
+
+  -- Initial Release.
+
+
+* Sun, 25 Jul 2010 23:15:57 -0500
+
+  -- v0.2 - Added preferences window.
+
+
+* Sun, 08 Aug 2010 13:41:00 -0500
+
+  -- v0.3 - Added clipboard watching.
+  -- Fixed preference window for older versions
+     of configobj
+
+
+* Sun, 08 Aug 2010 18:02:22 -0500
+
+  -- v0.4 - Really fixed preference window for older versions
+     of configobj
+  -- Bugfixes for clipboard listening
+
+
+* Mon, 09 Aug 2010 01:53:00 -0500
+
+  -- v0.5 - Added default button colors and config, implemented
+     single- / multi- column mode
+  -- Configuration options for number of clipboard items to
+     remember, and column number to wrap at in multi-column
+     mode
+  -- No UI config option 'initial_clip' - use clipboard contents
+     when starting, default True
+  -- Minor cosmetic bugfixes
+
+
+* Mon, 09 Aug 2010 18:14:43 -0500
+
+  -- v0.6 - Minor fix: resizing clipboard ring smaller now
+     truncates clip buttons to new size
+
+
+* Sat, 21 Aug 2010 02:45:13 -0500
+
+  -- v0.7 - Added support for multiple profiles
+  -- Made a multi-line edit window for editing snippet contents
+  -- A bunch of smaller bugfixes in preferences window
+
+
+* Fri, 10 Sep 2010 19:31:19 -0500
+
+  -- v0.7.2 - Changelog deprecated, see hg log.
+
+
