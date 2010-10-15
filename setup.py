@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 
-import os, glob
+import os, glob, sys
 from distutils.core import setup
-from gpasteitin import gpasteitin
+import version
 
 dfiles     = (["resources/gpasteitin.ui"])
 scripts    = [os.path.join("scripts", "gpasteitin")]
@@ -11,7 +11,7 @@ data_files = [("/usr/share/gpasteitin", dfiles),
               ("/usr/share/applications", ["resources/gpasteitin.desktop"])]
 
 setup(name             = "GPasteItIn",
-      version          = gpasteitin.__VERSION__,
+      version          = version.__VERSION__,
       description      = "Simple snippet / paste tool for GTK+",
       long_description = "Simple snippet / paste tool for GTK+",
       author           = "Jordan Callicoat",

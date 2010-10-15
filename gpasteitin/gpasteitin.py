@@ -26,7 +26,6 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-__VERSION__ = "0.7.4"
 
 import os
 import sys
@@ -35,9 +34,13 @@ import time
 try:
     import gtk
     import gobject
-    import wnck
 except ImportError:
     sys.exit ("This program requires python-gtk.")
+
+try:
+    import wnck
+except ImportError:
+    sys.exit ("This program requires python-wnck or python-gnomedesktop.")
 
 try:
     from configobj import ConfigObj
@@ -82,14 +85,14 @@ class GPasteItIn (object):
         self.populate_config ()
 
         self.display     = display.Display ()
-        self.screen      = wnck.screen_get_default()
-        self.last_window = self.screen.get_active_window ()
+        self.screen      = wnck.screen_get_default ()
         self.clipboard   = gtk.clipboard_get ("CLIPBOARD")
         self.alt_clip    = gtk.clipboard_get ("PRIMARY")
         self.new_clip    = None
         self.our_data    = None
         self.clips       = []
         self.clips_ins   = 0
+        self.pasting     = False
 
         self.terminals = [
             "Terminal", "terminator", "lxterminal", "Yakuake",
@@ -172,8 +175,7 @@ class GPasteItIn (object):
             "on_profile_new"        : self.on_profile_new,
             "on_profile_delete"     : self.on_profile_delete,
             "on_profile_activate"   : self.on_profile_activate,
-            "on_configure_event"    : self.on_configure_event,
-            "on_focus_in_event"     : self.on_focus_in_event
+            "on_configure_event"    : self.on_configure_event
         })
 
         self.window = ui.get_object ("MainWindow")
@@ -398,6 +400,7 @@ class GPasteItIn (object):
         else:
             self.clipboard.clear ()
         self.new_clip = None
+        self.pasting  = False
         return False # cancel the timout
 
 
@@ -408,6 +411,7 @@ class GPasteItIn (object):
         else:
             self.clipboard.set_text (text)
         self.new_clip = None
+        self.pasting  = False
         return False # cancel the timeout
 
 
@@ -508,36 +512,54 @@ class GPasteItIn (object):
         return True # cancel the delete event
 
 
-    def on_focus_in_event (self, window, event, *args):
-        last_window = self.screen.get_previously_active_window ()
-        if last_window and not last_window == self.last_window:
-            name = last_window.get_application ().get_name ().split (" ", 1)[0]
-            if not name == "gpasteitin.py":
-                self.last_window = last_window
-
-
     def on_paste_stuff (self, button, *args):
-        self.on_focus_in_event (self.window, gtk.gdk.Event (gtk.gdk.FOCUS_CHANGE))
-        if not self.last_window:
+        if self.pasting:
             return
-        self.last_window.activate (gtk.get_current_event_time ())
-
-        gobject.timeout_add (20, self.do_paste, button, *args)
-
-
-    def do_paste (self, button, *args):
+        self.pasting = True
+    
         new_text = button.get_tooltip_text ()
-        name     = self.last_window.get_application ().get_name ().split (" ", 1)[0]
+        window   = window = self.screen.get_active_window ()
+        name     = window.get_application ().get_name ().split (" ", 1)[0]
+
+        self.our_data = new_text
+
+        # TODO: configuration option for paste key-sequence?
+        ctrl  = self.display.keysym_to_keycode (XK.string_to_keysym ("Control_L"))
+        shift = self.display.keysym_to_keycode (XK.string_to_keysym ("Shift_L"))
+        v     = self.display.keysym_to_keycode (XK.string_to_keysym ("v"))
 
         if name in self.alt_terms:
             old_text = self.alt_clip.wait_for_text ()
             self.alt_clip.set_text (new_text)
-            gobject.timeout_add (100, self.send_paste_keypress, True, old_text, name)
+
+            ins = self.display.keysym_to_keycode (XK.string_to_keysym ("Insert"))
+            self.display.xtest_fake_input (X.KeyPress, shift)
+            self.display.xtest_fake_input (X.KeyPress, ins)
+            self.display.xtest_fake_input (X.KeyRelease, ins)
+            self.display.xtest_fake_input (X.KeyRelease, shift)
+
+            self.new_clip = self.alt_clip
         else:
-            self.our_data = new_text
             old_text = self.clipboard.wait_for_text ()
             self.clipboard.set_text (new_text)
-            gobject.timeout_add (100, self.send_paste_keypress, False, old_text, name)
+
+            term = name in self.terminals or "bash" in name
+            if term:
+                self.display.xtest_fake_input (X.KeyPress, shift)
+            self.display.xtest_fake_input (X.KeyPress, ctrl)
+            self.display.xtest_fake_input (X.KeyPress, v)
+            self.display.xtest_fake_input (X.KeyRelease, v)
+            self.display.xtest_fake_input (X.KeyRelease, ctrl)
+            if term:
+                self.display.xtest_fake_input (X.KeyRelease, shift)
+
+        self.display.sync ()
+
+        # need to give xlib time to do it's thing as the calls are asyncronous
+        if old_text:
+            gobject.timeout_add (100, self.reset_clipboard, old_text)
+        else:
+            gobject.timeout_add (100, self.clear_clipboard)
 
 
     def on_add_item (self, widget):
