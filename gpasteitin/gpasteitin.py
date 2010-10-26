@@ -1,4 +1,4 @@
-#!/usr/bin/python2
+#!/usr/bin/python
 # vim:et:sw=4:sts=4
 
 # Copyright (c) 2010, Jordan Callicoat <jordan.callicoat@rackspace.com>
