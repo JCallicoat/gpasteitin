@@ -408,8 +408,12 @@ class GPasteItIn (object):
         self.our_data = text
         if self.new_clip:
             self.new_clip.set_text (text)
+            while not self.new_clip.wait_for_text () == text:
+                time.sleep (0.1)
         else:
             self.clipboard.set_text (text)
+            while not self.new_clip.wait_for_text () == text:
+                time.sleep (0.1)
         self.new_clip = None
         self.pasting  = False
         return False # cancel the timeout
@@ -531,6 +535,8 @@ class GPasteItIn (object):
         if name in self.alt_terms:
             old_text = self.alt_clip.wait_for_text ()
             self.alt_clip.set_text (new_text)
+            while not self.alt_clip.wait_for_text () == new_text:
+                time.sleep (0.1)
 
             ins = self.display.keysym_to_keycode (XK.string_to_keysym ("Insert"))
             self.display.xtest_fake_input (X.KeyPress, shift)
@@ -542,6 +548,8 @@ class GPasteItIn (object):
         else:
             old_text = self.clipboard.wait_for_text ()
             self.clipboard.set_text (new_text)
+            while not self.clipboard.wait_for_text () == new_text:
+                time.sleep (0.1)
 
             term = name in self.terminals or "bash" in name
             if term:
