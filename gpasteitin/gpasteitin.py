@@ -535,6 +535,8 @@ class GPasteItIn (object):
             self.old_text = self.clipboard.wait_for_text ()
             self.clipboard.set_text (new_text)
 
+#        self.send_paste_keypress ()
+
 
     def on_add_item (self, widget):
         # insert new row under selected row
