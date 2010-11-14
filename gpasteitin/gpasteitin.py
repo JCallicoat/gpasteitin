@@ -30,6 +30,7 @@
 import os
 import sys
 import time
+import select
 
 try:
     import gtk
@@ -93,6 +94,7 @@ class GPasteItIn (object):
         self.clips       = []
         self.clips_ins   = 0
         self.pasting     = False
+        self.need_paste  = False
 
         self.terminals = [
             "Terminal", "terminator", "lxterminal", "Yakuake",
@@ -360,22 +362,20 @@ class GPasteItIn (object):
 
     #############
     # utility
-    def send_paste_keypress (self, alt_clip=False, old_text=None, name=None):
+    def send_paste_keypress (self):
         # TODO: configuration option for paste key-sequence?
         ctrl  = self.display.keysym_to_keycode (XK.string_to_keysym ("Control_L"))
         shift = self.display.keysym_to_keycode (XK.string_to_keysym ("Shift_L"))
         v     = self.display.keysym_to_keycode (XK.string_to_keysym ("v"))
 
-        if alt_clip:
+        if self.new_clip:
             ins = self.display.keysym_to_keycode (XK.string_to_keysym ("Insert"))
             self.display.xtest_fake_input (X.KeyPress, shift)
             self.display.xtest_fake_input (X.KeyPress, ins)
             self.display.xtest_fake_input (X.KeyRelease, ins)
             self.display.xtest_fake_input (X.KeyRelease, shift)
-
-            self.new_clip = self.alt_clip
         else:
-            term = name in self.terminals or "bash" in name
+            term = self.name in self.terminals or "bash" in self.name
             if term:
                 self.display.xtest_fake_input (X.KeyPress, shift)
             self.display.xtest_fake_input (X.KeyPress, ctrl)
@@ -388,34 +388,32 @@ class GPasteItIn (object):
         self.display.sync ()
 
         # need to give xlib time to do it's thing as the calls are asyncronous
-        if old_text:
-            gobject.timeout_add (100, self.reset_clipboard, old_text)
+        if self.old_text:
+            gobject.timeout_add (200, self.reset_clipboard, self.old_text)
+#            self.reset_clipboard (self.old_text)
         else:
-            gobject.timeout_add (100, self.clear_clipboard)
+            gobject.timeout_add (200, self.clear_clipboard)
+#            self.clear_clipboard ()
 
 
     def clear_clipboard (self):
+        self.pasting = False
         if self.new_clip:
             self.new_clip.clear ()
         else:
             self.clipboard.clear ()
         self.new_clip = None
-        self.pasting  = False
         return False # cancel the timout
 
 
     def reset_clipboard (self, text):
+        self.pasting  = False
         self.our_data = text
         if self.new_clip:
             self.new_clip.set_text (text)
-#            while not self.new_clip.wait_for_text () == text:
-#                time.sleep (0.1)
         else:
             self.clipboard.set_text (text)
-#            while not self.new_clip.wait_for_text () == text:
-#                time.sleep (0.1)
         self.new_clip = None
-        self.pasting  = False
         return False # cancel the timeout
 
 
@@ -483,7 +481,7 @@ class GPasteItIn (object):
 
 
     def size_move_window (self):
-        self.window.resize (10, 10)
+#        self.window.resize (10, 10)
         return False # cancel the timeout
 
 
@@ -519,55 +517,23 @@ class GPasteItIn (object):
     def on_paste_stuff (self, button, *args):
         if self.pasting:
             return
-        self.pasting = True
+        self.pasting    = True
+        self.need_paste = True
     
         new_text = button.get_tooltip_text ()
         window   = window = self.screen.get_active_window ()
         name     = window.get_application ().get_name ().split (" ", 1)[0]
 
         self.our_data = new_text
+        self.name     = name
 
-        # TODO: configuration option for paste key-sequence?
-        ctrl  = self.display.keysym_to_keycode (XK.string_to_keysym ("Control_L"))
-        shift = self.display.keysym_to_keycode (XK.string_to_keysym ("Shift_L"))
-        v     = self.display.keysym_to_keycode (XK.string_to_keysym ("v"))
-
-        if name in self.alt_terms:
-            old_text = self.alt_clip.wait_for_text ()
-            self.alt_clip.set_text (new_text)
-#            while not self.alt_clip.wait_for_text () == new_text:
-#                time.sleep (0.1)
-
-            ins = self.display.keysym_to_keycode (XK.string_to_keysym ("Insert"))
-            self.display.xtest_fake_input (X.KeyPress, shift)
-            self.display.xtest_fake_input (X.KeyPress, ins)
-            self.display.xtest_fake_input (X.KeyRelease, ins)
-            self.display.xtest_fake_input (X.KeyRelease, shift)
-
+        if self.name in self.alt_terms:
+            self.old_text = self.alt_clip.wait_for_text ()
             self.new_clip = self.alt_clip
+            self.alt_clip.set_text (new_text)
         else:
-            old_text = self.clipboard.wait_for_text ()
+            self.old_text = self.clipboard.wait_for_text ()
             self.clipboard.set_text (new_text)
-#            while not self.clipboard.wait_for_text () == new_text:
-#                time.sleep (0.1)
-
-            term = name in self.terminals or "bash" in name
-            if term:
-                self.display.xtest_fake_input (X.KeyPress, shift)
-            self.display.xtest_fake_input (X.KeyPress, ctrl)
-            self.display.xtest_fake_input (X.KeyPress, v)
-            self.display.xtest_fake_input (X.KeyRelease, v)
-            self.display.xtest_fake_input (X.KeyRelease, ctrl)
-            if term:
-                self.display.xtest_fake_input (X.KeyRelease, shift)
-
-        self.display.sync ()
-
-        # need to give xlib time to do it's thing as the calls are asyncronous
-        if old_text:
-            gobject.timeout_add (100, self.reset_clipboard, old_text)
-        else:
-            gobject.timeout_add (100, self.clear_clipboard)
 
 
     def on_add_item (self, widget):
@@ -708,7 +674,10 @@ class GPasteItIn (object):
 
 
     def on_clipboard_text (self, clipboard, text, data):
-        if not text or text in self.clips or text == self.our_data:
+        if self.need_paste:
+            self.need_paste = False
+            self.send_paste_keypress ()
+        elif not text or text in self.clips or text == self.our_data:
             return
         else:
             self.our_data = text
